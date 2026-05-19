@@ -32,7 +32,25 @@
     display: flex; flex-direction: column;
     border: 1px solid rgba(0,0,0,0.04);
     box-shadow: 0 4px 20px rgba(0,0,0,0.02);
+    position: relative; overflow: hidden;
   }
+  /* Цветной фон шапки */
+  .screen:first-of-type .screen-inner {
+    background:
+      radial-gradient(circle at 88% 8%, rgba(251,146,60,0.22) 0%, transparent 38%),
+      radial-gradient(circle at 6% 92%, rgba(220,38,38,0.16) 0%, transparent 45%),
+      radial-gradient(circle at 50% 50%, rgba(34,197,94,0.06) 0%, transparent 60%),
+      linear-gradient(135deg, #FBFAF7 0%, #F5F1EA 100%);
+  }
+  .screen:first-of-type .screen-inner::before {
+    content: ''; position: absolute; top: -40px; right: -40px;
+    width: 280px; height: 280px;
+    background: radial-gradient(circle, rgba(220,38,38,0.18) 0%, transparent 70%);
+    pointer-events: none; z-index: 0;
+  }
+  .screen:first-of-type .top,
+  .screen:first-of-type .hero-grid,
+  .screen:first-of-type .services { position: relative; z-index: 1; }
 
   /* TOP */
   .top {
@@ -568,10 +586,55 @@ covs.forEach(c => c.addEventListener('click', () => {
 
 recalc(); // первый расчёт при загрузке
 
-function submitForm(e) {
+const TG_BOT = '8951599709:AAFjP7W39ArPPzi63zi4c4RC5TuBgtyICD4';
+const TG_CHAT = '643348349';
+
+async function submitForm(e) {
   e.preventDefault();
-  alert('Спасибо! Перезвоню в течение 30 минут.');
-  e.target.reset();
+  const btn = e.target.querySelector('.form-submit');
+  const oldText = btn.textContent;
+  btn.textContent = 'Отправляю...';
+  btn.disabled = true;
+
+  const fd = new FormData(e.target);
+  const name = fd.get('name') || '—';
+  const phone = fd.get('phone') || '—';
+  const message = fd.get('message') || '—';
+  const ppm = getPricePerM2(area, coverage);
+  const total = (area * ppm).toLocaleString('ru-RU');
+  const calc = `${area} м² · ${coverage === 'rubber' ? 'резиновая крошка' : 'искусственная трава'} · ~${total} ₽`;
+
+  const text =
+    '🏟 Новая заявка с лендинга\n\n' +
+    '👤 Имя: ' + name + '\n' +
+    '📞 Телефон: ' + phone + '\n' +
+    '📝 Сообщение: ' + message + '\n\n' +
+    '📊 Калькулятор: ' + calc;
+
+  try {
+    const r = await fetch('https://api.telegram.org/bot' + TG_BOT + '/sendMessage', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({chat_id: TG_CHAT, text})
+    });
+    const d = await r.json();
+    if (d.ok) {
+      btn.textContent = '✓ Заявка отправлена';
+      btn.style.background = '#22C55E';
+      e.target.reset();
+      setTimeout(() => {
+        btn.textContent = oldText;
+        btn.style.background = '';
+        btn.disabled = false;
+      }, 3500);
+    } else {
+      throw new Error(d.description || 'send failed');
+    }
+  } catch (err) {
+    btn.textContent = 'Ошибка — напишите в Telegram';
+    btn.disabled = false;
+    console.error(err);
+  }
   return false;
 }
 
